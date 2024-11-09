@@ -53,6 +53,7 @@ struct stats_t {
     u64 readdir;
     u64 read;
     u64 write;
+    char task[TASK_COMM_LEN];
 };
 
 enum op_type {
@@ -114,7 +115,9 @@ static int trace_return(struct pt_regs *ctx, enum op_type op)
             stats->write++;
             break;
     }
-    
+    if (FILTER_PID) {
+        bpf_get_current_comm(&(stats->task), sizeof(stats->task));
+    }
     return 0;
 }
 
@@ -210,13 +213,13 @@ while (1):
     sorted_counts = sorted(counts.items(), key=lambda counts: total_ops(counts[1]), reverse=True)
     # print title
     if args.user:
-        print("%-6s %-8s %-8s %-8s %-8s %-8s %-8s" % ("PID", "GETATTR", "LOOKUP", "OPEN", "READDIR", "READ", "WRITE"))
+        print("%-6s %-10s %-8s %-8s %-8s %-8s %-8s %-8s" % ("PID", "COMM", "GETATTR", "LOOKUP", "OPEN", "READDIR", "READ", "WRITE"))
     else:
         print("%-6s %-8s %-8s %-8s %-8s %-8s %-8s" % ("USER", "GETATTR", "LOOKUP", "OPEN", "READDIR", "READ", "WRITE"))
     # print top 10
     for k, v in sorted_counts[:10]:
         if args.user:
-            print("%-6d %-8d %-8d %-8d %-8d %-8d %-8d" % (k.value, v.getattr, v.lookup, v.open, v.readdir, v.read, v.write))
+            print("%-6d %-10s %-8d %-8d %-8d %-8d %-8d %-8d" % (k.value, v.task.decode('utf-8', 'replace'), v.getattr, v.lookup, v.open, v.readdir, v.read, v.write))
         else:
             print("%-6s %-8d %-8d %-8d %-8d %-8d %-8d" % (pwd.getpwuid(k.value).pw_name, v.getattr, v.lookup, v.open, v.readdir, v.read, v.write))
             
